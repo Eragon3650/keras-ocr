@@ -7,19 +7,23 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 import cv2
+from stn import spatial_transformer_network as transformer
 
 from . import tools
 
+INIT_LR = 1.0
+EPOCHS = 250
+
 DEFAULT_BUILD_PARAMS = {
     "height": 31,
-    "width": 200,
+    "width": 240,
     "color": False,
     "filters": (64, 128, 256, 256, 512, 512, 512),
     "rnn_units": (128, 128),
-    "dropout": 0.25,
-    "rnn_steps_to_discard": 2,
-    "pool_size": 2,
-    "stn": True,
+    "dropout": 0.2,
+    "rnn_steps_to_discard": 0,
+    "pool_size": 1,
+    "stn": False,
 }
 
 DEFAULT_ALPHABET = string.digits + string.ascii_lowercase
@@ -165,14 +169,13 @@ def _transform(inputs):
     )
     return transformed_image
 
-
 def CTCDecoder():
     def decoder(y_pred):
         input_shape = tf.keras.backend.shape(y_pred)
         input_length = tf.ones(shape=input_shape[0]) * tf.keras.backend.cast(
             input_shape[1], "float32"
         )
-        unpadded = tf.keras.backend.ctc_decode(y_pred, input_length)[0][0]
+        unpadded = tf.keras.backend.ctc_decode(tf.cast(y_pred, tf.float32), input_length)[0][0]
         unpadded_shape = tf.keras.backend.shape(unpadded)
         padded = tf.pad(
             unpadded,
@@ -183,6 +186,16 @@ def CTCDecoder():
 
     return tf.keras.layers.Lambda(decoder, name="decode")
 
+def CTCLoss(y_true, y_pred):
+    batch_len = tf.cast(tf.shape(y_true)[0], dtype="int64")
+    input_len = tf.cast(tf.shape(y_pred)[1], dtype="int64")
+    label_lem = tf.cast(tf.shape(y_true)[1], dtype="int64")
+
+    input_len = input_len * tf.ones(shape=(batch_len, 1), dtype="int64")
+    label_len = input_len * tf.ones(shape=(batch_len, 1), dtype="int64")
+
+    loss = tf.keras.backend.ctc_batch_cost(y_true, y_pred, input_len, label_len)
+    return loss
 
 def build_model(
     alphabet,
@@ -211,118 +224,76 @@ def build_model(
     """
     assert len(filters) == 7, "7 CNN filters must be provided."
     assert len(rnn_units) == 2, "2 RNN filters must be provided."
-    inputs = keras.layers.Input((height, width, 3 if color else 1))
-    x = keras.layers.Permute((2, 1, 3))(inputs)
+    inputs = keras.layers.Input((240, 240, 3 if color else 1), name="image")
+    x = keras.layers.Permute((1, 2, 3))(inputs)
     x = keras.layers.Lambda(lambda x: x[:, :, ::-1])(x)
+    
+    locnet_y = keras.layers.Conv2D(16, (5, 5), padding="same", activation="relu")(x)
+    locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(locnet_y)
+    locnet_y = keras.layers.Flatten()(locnet_y)
+    locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
+    locnet_y = keras.layers.Dense(
+        6,
+        weights=[
+            np.zeros((64, 6), dtype="float32"),
+            np.array([[1, 0, 0], [0, 1, 0]], dtype="float32").flatten(),
+        ],
+    )(locnet_y)
+    localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
+    localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
+    x = transformer(x, localization_net(x), (height,width))
+    #print(x.shape)
     x = keras.layers.Conv2D(
-        filters[0], (3, 3), activation="relu", padding="same", name="conv_1"
+        filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2'
     )(x)
     x = keras.layers.Conv2D(
-        filters[1], (3, 3), activation="relu", padding="same", name="conv_2"
+        filters[1], (3, 3), activation="relu", padding="same", name="conv_2", kernel_regularizer='l2'
     )(x)
     x = keras.layers.Conv2D(
-        filters[2], (3, 3), activation="relu", padding="same", name="conv_3"
+        filters[2], (3, 3), activation="relu", padding="same", name="conv_3", kernel_regularizer='l2'
     )(x)
     x = keras.layers.BatchNormalization(name="bn_3")(x)
     x = keras.layers.MaxPooling2D(pool_size=(pool_size, pool_size), name="maxpool_3")(x)
     x = keras.layers.Conv2D(
-        filters[3], (3, 3), activation="relu", padding="same", name="conv_4"
+        filters[3], (3, 3), activation="relu", padding="same", name="conv_4", kernel_regularizer='l2'
     )(x)
     x = keras.layers.Conv2D(
-        filters[4], (3, 3), activation="relu", padding="same", name="conv_5"
+        filters[4], (3, 3), activation="relu", padding="same", name="conv_5", kernel_regularizer='l2'
     )(x)
     x = keras.layers.BatchNormalization(name="bn_5")(x)
     x = keras.layers.MaxPooling2D(pool_size=(pool_size, pool_size), name="maxpool_5")(x)
     x = keras.layers.Conv2D(
-        filters[5], (3, 3), activation="relu", padding="same", name="conv_6"
+        filters[5], (3, 3), activation="relu", padding="same", name="conv_6", kernel_regularizer='l2'
     )(x)
     x = keras.layers.Conv2D(
-        filters[6], (3, 3), activation="relu", padding="same", name="conv_7"
+        filters[6], (3, 3), activation="relu", padding="same", name="conv_7", kernel_regularizer='l2'
     )(x)
     x = keras.layers.BatchNormalization(name="bn_7")(x)
-    if stn:
-        # pylint: disable=pointless-string-statement
-        """Spatial Transformer Layer
-        Implements a spatial transformer layer as described in [1]_.
-        Borrowed from [2]_:
-        downsample_fator : float
-            A value of 1 will keep the orignal size of the image.
-            Values larger than 1 will down sample the image. Values below 1 will
-            upsample the image.
-            example image: height= 100, width = 200
-            downsample_factor = 2
-            output image will then be 50, 100
-        References
-        ----------
-        .. [1]  Spatial Transformer Networks
-                Max Jaderberg, Karen Simonyan, Andrew Zisserman, Koray Kavukcuoglu
-                Submitted on 5 Jun 2015
-        .. [2]  https://github.com/skaae/transformer_network/blob/master/transformerlayer.py
-        .. [3]  https://github.com/EderSantana/seya/blob/keras1/seya/layers/attention.py
-        """
-        stn_input_output_shape = (
-            width // pool_size**2,
-            height // pool_size**2,
-            filters[6],
-        )
-        stn_input_layer = keras.layers.Input(shape=stn_input_output_shape)
-        locnet_y = keras.layers.Conv2D(16, (5, 5), padding="same", activation="relu")(
-            stn_input_layer
-        )
-        locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(
-            locnet_y
-        )
-        locnet_y = keras.layers.Flatten()(locnet_y)
-        locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
-        locnet_y = keras.layers.Dense(
-            6,
-            weights=[
-                np.zeros((64, 6), dtype="float32"),
-                np.array([[1, 0, 0], [0, 1, 0]], dtype="float32").flatten(),
-            ],
-        )(locnet_y)
-        localization_net = keras.models.Model(inputs=stn_input_layer, outputs=locnet_y)
-        x = keras.layers.Lambda(_transform, output_shape=stn_input_output_shape)(
-            [x, localization_net(x)]
-        )
+
     x = keras.layers.Reshape(
         target_shape=(
-            width // pool_size**2,
-            (height // pool_size**2) * filters[-1],
+            width,
+            height * filters[6]
         ),
         name="reshape",
     )(x)
-
-    x = keras.layers.Dense(rnn_units[0], activation="relu", name="fc_9")(x)
-
-    rnn_1_forward = keras.layers.LSTM(
+    x = keras.layers.Dense(rnn_units[0], activation="relu", name="fc_9", kernel_regularizer='l2')(x)
+    rnn_1 = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(
         rnn_units[0],
         kernel_initializer="he_normal",
         return_sequences=True,
         name="lstm_10",
-    )(x)
-    rnn_1_back = keras.layers.LSTM(
-        rnn_units[0],
-        kernel_initializer="he_normal",
-        go_backwards=True,
-        return_sequences=True,
-        name="lstm_10_back",
-    )(x)
-    rnn_1_add = keras.layers.Add()([rnn_1_forward, rnn_1_back])
-    rnn_2_forward = keras.layers.LSTM(
+        kernel_regularizer='l2',
+    ))(x)
+    rnn_1 = keras.layers.BatchNormalization()(rnn_1)
+    rnn_2 = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(
         rnn_units[1],
         kernel_initializer="he_normal",
         return_sequences=True,
         name="lstm_11",
-    )(rnn_1_add)
-    rnn_2_back = keras.layers.LSTM(
-        rnn_units[1],
-        kernel_initializer="he_normal",
-        go_backwards=True,
-        return_sequences=True,
-        name="lstm_11_back",
-    )(rnn_1_add)
-    x = keras.layers.Concatenate()([rnn_2_forward, rnn_2_back])
+        kernel_regularizer='l2',
+    ))(rnn_1)
+    x = keras.layers.BatchNormalization()(rnn_2)
     backbone = keras.models.Model(inputs=inputs, outputs=x)
     x = keras.layers.Dropout(dropout, name="dropout")(x)
     x = keras.layers.Dense(
@@ -330,18 +301,18 @@ def build_model(
         kernel_initializer="he_normal",
         activation="softmax",
         name="fc_12",
+        kernel_regularizer='l2',
     )(x)
     x = keras.layers.Lambda(lambda x: x[:, rnn_steps_to_discard:])(x)
     model = keras.models.Model(inputs=inputs, outputs=x)
-
     prediction_model = keras.models.Model(
         inputs=inputs, outputs=CTCDecoder()(model.output)
     )
     labels = keras.layers.Input(
-        name="labels", shape=[model.output_shape[1]], dtype="float32"
+        name="labels", shape=[model.output_shape[1]]
     )
-    label_length = keras.layers.Input(shape=[1])
-    input_length = keras.layers.Input(shape=[1])
+    label_length = keras.layers.Input(shape=[1], name="label_length")
+    input_length = keras.layers.Input(shape=[1], name="input_length")
     loss = keras.layers.Lambda(
         lambda inputs: keras.backend.ctc_batch_cost(
             y_true=inputs[0],
@@ -406,9 +377,9 @@ class Recognizer:
                         url=weights_dict["weights"]["notop"]["url"],
                         filename=weights_dict["weights"]["notop"]["filename"],
                         sha256=weights_dict["weights"]["notop"]["sha256"],
-                    )
+                    ), skip_mismatch=True, by_name=True
                 )
-
+     
     def get_batch_generator(self, image_generator, batch_size=8, lowercase=False):
         """
         Generate batches of training data from an image generator. The generator
@@ -439,12 +410,15 @@ class Recognizer:
                 ]
             else:
                 images = [sample[0] for sample in batch]
-            images = np.array([image.astype("float32") / 255 for image in images])
+            images = np.array([image / 255 for image in images])
             sentences = [sample[1].strip() for sample in batch]
             if lowercase:
                 sentences = [sentence.lower() for sentence in sentences]
             for c in "".join(sentences):
                 assert c in self.alphabet, f"Found illegal character: {c}"
+            for sentence in sentences:
+                if(len(sentence) <= 0):
+                    print(sentence)
             assert all(sentences), "Found a zero length sentence."
             assert all(
                 len(sentence) <= max_string_length for sentence in sentences
@@ -459,7 +433,7 @@ class Recognizer:
             labels = np.array(
                 [
                     [self.alphabet.index(c) for c in sentence]
-                    + [-1] * (max_string_length - len(sentence))
+                    + [len(self.alphabet)] * (max_string_length - len(sentence))
                     for sentence in sentences
                 ]
             )
@@ -544,8 +518,9 @@ class Recognizer:
 
     def compile(self, *args, **kwargs):
         """Compile the training model."""
+        opt = tf.keras.optimizers.experimental.Adadelta(learning_rate = INIT_LR)
         if "optimizer" not in kwargs:
-            kwargs["optimizer"] = "RMSprop"
+            kwargs["optimizer"] = opt
         if "loss" not in kwargs:
             kwargs["loss"] = lambda _, y_pred: y_pred
         self.training_model.compile(*args, **kwargs)
