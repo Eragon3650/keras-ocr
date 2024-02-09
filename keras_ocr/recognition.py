@@ -16,7 +16,7 @@ EPOCHS = 250
 
 DEFAULT_BUILD_PARAMS = {
     "height": 31,
-    "width": 240,
+    "width": 200,
     "color": False,
     "filters": (64, 128, 256, 256, 512, 512, 512),
     "rnn_units": (128, 128),
@@ -224,24 +224,24 @@ def build_model(
     """
     assert len(filters) == 7, "7 CNN filters must be provided."
     assert len(rnn_units) == 2, "2 RNN filters must be provided."
-    inputs = keras.layers.Input((240, 240, 3 if color else 1), name="image")
+    inputs = keras.layers.Input((31, 200, 3 if color else 1), name="image")
     x = keras.layers.Permute((1, 2, 3))(inputs)
     x = keras.layers.Lambda(lambda x: x[:, :, ::-1])(x)
     
-    locnet_y = keras.layers.Conv2D(16, (5, 5), padding="same", activation="relu")(x)
-    locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(locnet_y)
-    locnet_y = keras.layers.Flatten()(locnet_y)
-    locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
-    locnet_y = keras.layers.Dense(
-        6,
-        weights=[
-            np.zeros((64, 6), dtype="float32"),
-            np.array([[1, 0, 0], [0, 1, 0]], dtype="float32").flatten(),
-        ],
-    )(locnet_y)
-    localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    x = transformer(x, localization_net(x), (height,width))
+    #locnet_y = keras.layers.Conv2D(16, (5, 5), padding="same", activation="relu")(x)
+    #locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(locnet_y)
+    #locnet_y = keras.layers.Flatten()(locnet_y)
+    #locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
+    #locnet_y = keras.layers.Dense(
+    #    6,
+    #    weights=[
+    #        np.zeros((64, 6), dtype="float32"),
+    #        np.array([[1, 0, 0], [0, 1, 0]], dtype="float32").flatten(),
+    #    ],
+    #)(locnet_y)
+    #localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
+    #localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
+    #x = transformer(x, localization_net(x), (height,width))
     #print(x.shape)
     x = keras.layers.Conv2D(
         filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2'
