@@ -19,7 +19,7 @@ DEFAULT_BUILD_PARAMS = {
     "width": 200,
     "color": False,
     "filters": (64, 128, 256, 256, 512, 512, 512),
-    "rnn_units": (128, 128),
+    "rnn_units": (256, 256),
     "dropout": 0.2,
     "rnn_steps_to_discard": 0,
     "pool_size": 1,
