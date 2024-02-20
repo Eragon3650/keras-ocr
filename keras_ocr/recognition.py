@@ -11,7 +11,7 @@ from stn import spatial_transformer_network as transformer
 
 from . import tools
 
-INIT_LR = 1.0
+INIT_LR = 1.0e-3
 EPOCHS = 250
 
 DEFAULT_BUILD_PARAMS = {
@@ -518,7 +518,7 @@ class Recognizer:
 
     def compile(self, *args, **kwargs):
         """Compile the training model."""
-        opt = tf.keras.optimizers.experimental.Adadelta(learning_rate = INIT_LR)
+        opt = tf.keras.optimizers.Adam(learning_rate = INIT_LR)
         if "optimizer" not in kwargs:
             kwargs["optimizer"] = opt
         if "loss" not in kwargs:
