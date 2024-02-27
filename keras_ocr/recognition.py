@@ -23,7 +23,7 @@ DEFAULT_BUILD_PARAMS = {
     "dropout": 0.2,
     "rnn_steps_to_discard": 0,
     "pool_size": 1,
-    "stn": False,
+    "stn": True,
 }
 
 DEFAULT_ALPHABET = string.digits + string.ascii_lowercase
@@ -228,45 +228,45 @@ def build_model(
     x = keras.layers.Permute((1, 2, 3))(inputs)
     x = keras.layers.Lambda(lambda x: x[:, :, ::-1])(x)
     
-    #locnet_y = keras.layers.Conv2D(16, (5, 5), padding="same", activation="relu")(x)
-    #locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(locnet_y)
-    #locnet_y = keras.layers.Flatten()(locnet_y)
-    #locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
-    #locnet_y = keras.layers.Dense(
-    #    6,
-    #    weights=[
-    #        np.zeros((64, 6), dtype="float32"),
-    #        np.array([[1, 0, 0], [0, 1, 0]], dtype="float32").flatten(),
-    #    ],
-    #)(locnet_y)
-    #localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    #localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    #x = transformer(x, localization_net(x), (height,width))
+    locnet_y = keras.layers.Conv2D(16, (5, 5), padding="same", activation="relu")(x)
+    locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(locnet_y)
+    locnet_y = keras.layers.Flatten()(locnet_y)
+    locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
+    locnet_y = keras.layers.Dense(
+        6,
+        weights=[
+            np.zeros((64, 6), dtype="float32"),
+            np.array([[1, 0, 0], [0, 1, 0]], dtype="float32").flatten(),
+        ],
+    )(locnet_y)
+    localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
+    localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
+    x = transformer(x, localization_net(x), (height,width))
     #print(x.shape)
     x = keras.layers.Conv2D(
-        filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2'
+        filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2', trainable=False
     )(x)
     x = keras.layers.Conv2D(
-        filters[1], (3, 3), activation="relu", padding="same", name="conv_2", kernel_regularizer='l2'
+        filters[1], (3, 3), activation="relu", padding="same", name="conv_2", kernel_regularizer='l2', trainable=False
     )(x)
     x = keras.layers.Conv2D(
-        filters[2], (3, 3), activation="relu", padding="same", name="conv_3", kernel_regularizer='l2'
+        filters[2], (3, 3), activation="relu", padding="same", name="conv_3", kernel_regularizer='l2', trainable=False
     )(x)
     x = keras.layers.BatchNormalization(name="bn_3")(x)
     x = keras.layers.MaxPooling2D(pool_size=(pool_size, pool_size), name="maxpool_3")(x)
     x = keras.layers.Conv2D(
-        filters[3], (3, 3), activation="relu", padding="same", name="conv_4", kernel_regularizer='l2'
+        filters[3], (3, 3), activation="relu", padding="same", name="conv_4", kernel_regularizer='l2', trainable=False
     )(x)
     x = keras.layers.Conv2D(
-        filters[4], (3, 3), activation="relu", padding="same", name="conv_5", kernel_regularizer='l2'
+        filters[4], (3, 3), activation="relu", padding="same", name="conv_5", kernel_regularizer='l2', trainable=False
     )(x)
     x = keras.layers.BatchNormalization(name="bn_5")(x)
     x = keras.layers.MaxPooling2D(pool_size=(pool_size, pool_size), name="maxpool_5")(x)
     x = keras.layers.Conv2D(
-        filters[5], (3, 3), activation="relu", padding="same", name="conv_6", kernel_regularizer='l2'
+        filters[5], (3, 3), activation="relu", padding="same", name="conv_6", kernel_regularizer='l2', trainable=False
     )(x)
     x = keras.layers.Conv2D(
-        filters[6], (3, 3), activation="relu", padding="same", name="conv_7", kernel_regularizer='l2'
+        filters[6], (3, 3), activation="relu", padding="same", name="conv_7", kernel_regularizer='l2', trainable=False
     )(x)
     x = keras.layers.BatchNormalization(name="bn_7")(x)
 
@@ -283,7 +283,7 @@ def build_model(
         kernel_initializer="he_normal",
         return_sequences=True,
         name="lstm_10",
-        kernel_regularizer='l2',
+        kernel_regularizer='l2', trainable=False
     ))(x)
     rnn_1 = keras.layers.BatchNormalization()(rnn_1)
     rnn_2 = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(
@@ -291,7 +291,7 @@ def build_model(
         kernel_initializer="he_normal",
         return_sequences=True,
         name="lstm_11",
-        kernel_regularizer='l2',
+        kernel_regularizer='l2', trainable=False
     ))(rnn_1)
     x = keras.layers.BatchNormalization()(rnn_2)
     backbone = keras.models.Model(inputs=inputs, outputs=x)
@@ -301,7 +301,7 @@ def build_model(
         kernel_initializer="he_normal",
         activation="softmax",
         name="fc_12",
-        kernel_regularizer='l2',
+        kernel_regularizer='l2', trainable=False
     )(x)
     x = keras.layers.Lambda(lambda x: x[:, rnn_steps_to_discard:])(x)
     model = keras.models.Model(inputs=inputs, outputs=x)
