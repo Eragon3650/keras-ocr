@@ -234,10 +234,6 @@ def build_model(
     locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
     locnet_y = keras.layers.Dense(
         6,
-        weights=[
-            np.zeros((64, 6), dtype="float32"),
-            np.array([[1, 0, 0], [0, 1, 0]], dtype="float32").flatten(),
-        ],
     )(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
