@@ -203,7 +203,7 @@ class STNTransform(keras.layers.Layer):
         self.locNetwork = locNetwork
     
     def call(self, x):
-        return transformer(x, locNetwork(x), (height,width))
+        return transformer(x, self.locNetwork(x), (height,width))
 
 def build_model(
     alphabet,
