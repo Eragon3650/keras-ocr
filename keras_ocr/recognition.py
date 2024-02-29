@@ -198,12 +198,14 @@ def CTCLoss(y_true, y_pred):
     return loss
 
 class STNTransform(keras.layers.Layer):
-    def __init__(self, locNetwork):
+    def __init__(self, locNetwork, height, width):
         super().__init__()
         self.locNetwork = locNetwork
+        self.height = height
+        self.width=width
     
     def call(self, x):
-        return transformer(x, self.locNetwork(x), (height,width))
+        return transformer(x, self.locNetwork(x), (self.height,self.width))
 
 def build_model(
     alphabet,
@@ -244,7 +246,7 @@ def build_model(
         6,
     )(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    transform = STNTransform(localization_net)
+    transform = STNTransform(localization_net, height, width)
     x = transform(x)
     #print(x.shape)
     x = keras.layers.Conv2D(
