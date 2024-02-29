@@ -197,6 +197,14 @@ def CTCLoss(y_true, y_pred):
     loss = tf.keras.backend.ctc_batch_cost(y_true, y_pred, input_len, label_len)
     return loss
 
+class STNTransform(Layer):
+    def __init__(self, locNetwork):
+        super().__init__()
+        self.locNetwork = locNetwork
+    
+    def call(self, x):
+        return transformer(x, locNetwork(x), (height,width))
+
 def build_model(
     alphabet,
     height,
@@ -236,8 +244,8 @@ def build_model(
         6,
     )(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    x = transformer(x, localization_net(x), (height,width))
+    transform = STNTransform(localization_net)
+    x = transform(x)
     #print(x.shape)
     x = keras.layers.Conv2D(
         filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2'
