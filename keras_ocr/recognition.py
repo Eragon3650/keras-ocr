@@ -246,8 +246,7 @@ def build_model(
         6,
     )(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    transform = STNTransform(localization_net, height, width)
-    x = transform(x)
+    x = transformer(x, localization_net(x), (height,width))
     #print(x.shape)
     x = keras.layers.Conv2D(
         filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2'
