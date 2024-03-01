@@ -197,16 +197,6 @@ def CTCLoss(y_true, y_pred):
     loss = tf.keras.backend.ctc_batch_cost(y_true, y_pred, input_len, label_len)
     return loss
 
-class STNTransform(keras.layers.Layer):
-    def __init__(self, locNetwork, height, width):
-        super().__init__()
-        self.locNetwork = locNetwork
-        self.height = height
-        self.width=width
-    
-    def call(self, x):
-        return transformer(x, self.locNetwork(x), (self.height,self.width))
-
 def build_model(
     alphabet,
     height,
