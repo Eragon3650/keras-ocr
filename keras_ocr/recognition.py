@@ -11,7 +11,7 @@ from stn import spatial_transformer_network as transformer
 
 from . import tools
 
-INIT_LR = 1.0e-3
+INIT_LR = 1.0e-4
 EPOCHS = 250
 
 DEFAULT_BUILD_PARAMS = {
