@@ -8,7 +8,6 @@ from tensorflow import keras
 import numpy as np
 import cv2
 from stn import spatial_transformer_network as transformer
-from CTC_TPU import classic_ctc_loss
 
 from . import tools
 
@@ -188,24 +187,14 @@ def CTCDecoder():
     return tf.keras.layers.Lambda(decoder, name="decode")
 
 def CTCLoss(y_true, y_pred):
-    #batch_len = tf.cast(tf.shape(y_true)[0], dtype="int64")
-    #input_len = tf.cast(tf.shape(y_pred)[1], dtype="int64")
-    #label_len = tf.cast(tf.shape(y_true)[1], dtype="int64")
+    batch_len = tf.cast(tf.shape(y_true)[0], dtype="int64")
+    input_len = tf.cast(tf.shape(y_pred)[1], dtype="int64")
+    label_lem = tf.cast(tf.shape(y_true)[1], dtype="int64")
 
-    #input_len = input_len * tf.ones(shape=(batch_len, 1), dtype="int64")
-    #label_len = input_len * tf.ones(shape=(batch_len, 1), dtype="int64")
+    input_len = input_len * tf.ones(shape=(batch_len, 1), dtype="int64")
+    label_len = input_len * tf.ones(shape=(batch_len, 1), dtype="int64")
 
-    label_length = tf.reduce_sum(tf.cast(y_true != pad_token_idx, tf.int32), axis=-1)
-    logit_length = tf.ones(tf.shape(r_pred)[0], dtype=tf.int32) * tf.shape(y_pred)[1]
-
-    loss = classic_ctc_loss(
-            labels=y_true,
-            logits=y_pred,
-            label_length=label_length,
-            logit_length=logit_length,
-            blank_index=95,
-        )
-    loss = tf.reduce_mean(loss)
+    loss = tf.keras.backend.ctc_batch_cost(y_true, y_pred, input_len, label_len)
     return loss
 
 def build_model(
@@ -320,13 +309,12 @@ def build_model(
     label_length = keras.layers.Input(shape=[1], name="label_length")
     input_length = keras.layers.Input(shape=[1], name="input_length")
     loss = keras.layers.Lambda(
-        lambda inputs: tf.reduce_mean(classic_ctc_loss(
+        lambda inputs: keras.backend.ctc_batch_cost(
             y_true=inputs[0],
             y_pred=inputs[1],
             input_length=inputs[2],
             label_length=inputs[3],
-            blank_index=95,
-        ))
+        )
     )([labels, model.output, input_length, label_length])
     training_model = keras.models.Model(
         inputs=[model.input, labels, input_length, label_length], outputs=loss
