@@ -15,8 +15,8 @@ INIT_LR = 1.0e-6
 EPOCHS = 250
 
 DEFAULT_BUILD_PARAMS = {
-    "height": 31,
-    "width": 200,
+    "height": 360,
+    "width": 360,
     "color": False,
     "filters": (64, 128, 256, 256, 512, 512, 512),
     "rnn_units": (256, 256),
@@ -224,7 +224,7 @@ def build_model(
     """
     assert len(filters) == 7, "7 CNN filters must be provided."
     assert len(rnn_units) == 2, "2 RNN filters must be provided."
-    inputs = keras.layers.Input((31, 200, 3 if color else 1), name="image")
+    inputs = keras.layers.Input((360, 360, 3 if color else 1), name="image")
     x = keras.layers.Permute((1, 2, 3))(inputs)
     x = keras.layers.Lambda(lambda x: x[:, :, ::-1])(x)
     
@@ -236,7 +236,7 @@ def build_model(
         6,
     )(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    x = transformer(x, localization_net(x), (height,width))
+    x = transformer(x, localization_net(x), (31,200))
     #print(x.shape)
     x = keras.layers.Conv2D(
         filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2'
