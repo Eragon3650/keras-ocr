@@ -15,8 +15,8 @@ INIT_LR = 1.0e-6
 EPOCHS = 250
 
 DEFAULT_BUILD_PARAMS = {
-    "height": 360,
-    "width": 360,
+    "height": 31,
+    "width": 200,
     "color": False,
     "filters": (64, 128, 256, 256, 512, 512, 512),
     "rnn_units": (256, 256),
@@ -236,7 +236,7 @@ def build_model(
         6,
     )(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    x = transformer(x, localization_net(x), (31,200))
+    x = transformer(x, localization_net(x), (height,width))
     #print(x.shape)
     x = keras.layers.Conv2D(
         filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2'
