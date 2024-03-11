@@ -228,15 +228,15 @@ def build_model(
     x = keras.layers.Permute((1, 2, 3))(inputs)
     x = keras.layers.Lambda(lambda x: x[:, :, ::-1])(x)
     
-    #locnet_y = keras.layers.Conv2D(16, (5, 5), padding="same", activation="relu")(x)
-    #locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(locnet_y)
-    #locnet_y = keras.layers.Flatten()(locnet_y)
-    #locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
-    #locnet_y = keras.layers.Dense(
-    #    6,
-    #)(locnet_y)
-    #localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    #x = transformer(x, localization_net(x), (height,width))
+    locnet_y = keras.layers.Conv2D(16, (5, 5), padding="same", activation="relu")(x)
+    locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(locnet_y)
+    locnet_y = keras.layers.Flatten()(locnet_y)
+    locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
+    locnet_y = keras.layers.Dense(
+        6,
+    )(locnet_y)
+    localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
+    x = transformer(x, localization_net(x), (height,width))
     #print(x.shape)
     x = keras.layers.Conv2D(
         filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2'
