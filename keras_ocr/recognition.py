@@ -319,8 +319,6 @@ def build_model(
     training_model = keras.models.Model(
         inputs=[model.input, labels, input_length, label_length], outputs=loss
     )
-    opt = tf.keras.optimizers.Adam(learning_rate = INIT_LR)
-    training_model.compile(opt, loss)
     return backbone, model, training_model, prediction_model
 
 
@@ -519,5 +517,5 @@ class Recognizer:
         if "optimizer" not in kwargs:
             kwargs["optimizer"] = opt
         if "loss" not in kwargs:
-            kwargs["loss"] = CTCLoss
+            kwargs["loss"] = lambda _, y_pred : y_pred
         self.training_model.compile(*args, **kwargs)
