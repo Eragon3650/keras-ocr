@@ -308,9 +308,16 @@ def build_model(
     )
     label_length = keras.layers.Input(shape=[1], name="label_length")
     input_length = keras.layers.Input(shape=[1], name="input_length")
-    #loss = CTCLoss(labels, model.output)
+    loss = keras.layers.Lambda(
+        lambda inputs: keras.backend.ctc_batch_cost(
+            y_true=inputs[0],
+            y_pred=inputs[1],
+            input_length=inputs[2],
+            label_length=inputs[3],
+        )
+    )([labels, model.output, input_length, label_length])
     training_model = keras.models.Model(
-        inputs=[model.input, labels, input_length, label_length], outputs=model.output
+        inputs=[model.input, labels, input_length, label_length], outputs=loss
     )
     return backbone, model, training_model, prediction_model
 
@@ -510,5 +517,5 @@ class Recognizer:
         if "optimizer" not in kwargs:
             kwargs["optimizer"] = opt
         if "loss" not in kwargs:
-            kwargs["loss"] = CTCLoss
+            kwargs["loss"] = lambda _, y_pred: y_pred
         self.training_model.compile(*args, **kwargs)
