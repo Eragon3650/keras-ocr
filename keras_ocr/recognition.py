@@ -319,6 +319,8 @@ def build_model(
     training_model = keras.models.Model(
         inputs=[model.input, labels, input_length, label_length], outputs=loss
     )
+    opt = tf.keras.optimizers.Adam(learning_rate = INIT_LR)
+    training_model.compile(opt, loss)
     return backbone, model, training_model, prediction_model
 
 
