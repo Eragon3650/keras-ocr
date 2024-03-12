@@ -517,5 +517,5 @@ class Recognizer:
         if "optimizer" not in kwargs:
             kwargs["optimizer"] = opt
         if "loss" not in kwargs:
-            kwargs["loss"] = lambda _, y_pred: y_pred
+            kwargs["loss"] = CTCLoss
         self.training_model.compile(*args, **kwargs)
