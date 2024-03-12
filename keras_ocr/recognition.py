@@ -308,7 +308,7 @@ def build_model(
     )
     label_length = keras.layers.Input(shape=[1], name="label_length")
     input_length = keras.layers.Input(shape=[1], name="input_length")
-    loss = CTCLoss(labels, model.output)
+    #loss = CTCLoss(labels, model.output)
     training_model = keras.models.Model(
         inputs=[model.input, labels, input_length, label_length], outputs=model.output
     )
