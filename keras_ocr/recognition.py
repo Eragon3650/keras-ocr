@@ -18,7 +18,7 @@ DEFAULT_BUILD_PARAMS = {
     "height": 31,
     "width": 200,
     "color": False,
-    "filters": (64, 128, 256, 256, 512, 512, 512),
+    "filters": (64, 128, 256, 256, 512, 512, 612),
     "rnn_units": (256, 256),
     "dropout": 0.2,
     "rnn_steps_to_discard": 0,
@@ -228,10 +228,10 @@ def build_model(
     x = keras.layers.Permute((1, 2, 3))(inputs)
     x = keras.layers.Lambda(lambda x: x[:, :, ::-1])(x)
     
-    locnet_y = keras.layers.Conv2D(16, (5, 5), padding="same", activation="relu")(x)
-    locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(locnet_y)
+    locnet_y = keras.layers.Conv2D(32, (5, 5), padding="same", activation="relu")(x)
+    locnet_y = keras.layers.Conv2D(64, (5, 5), padding="same", activation="relu")(locnet_y)
     locnet_y = keras.layers.Flatten()(locnet_y)
-    locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
+    locnet_y = keras.layers.Dense(128, activation="relu")(locnet_y)
     locnet_y = keras.layers.Dense(
         6,
     )(locnet_y)
