@@ -228,18 +228,16 @@ def build_model(
     x = keras.layers.Permute((1, 2, 3))(inputs)
     x = keras.layers.Lambda(lambda x: x[:, :, ::-1])(x)
     
-    locnet_y = keras.layers.Conv2D(32, (4, 4), padding="same", activation="relu")(x)
+    locnet_y = keras.layers.Conv2D(32, (3, 3), padding="same", activation="relu")(x)
     locnet_y = keras.layers.BatchNormalization(name="bn_stn_1")(locnet_y)
-    locnet_y = keras.layers.Conv2D(32, (4, 4), padding="same", activation="relu")(locnet_y)
+    locnet_y = keras.layers.Conv2D(32, (3, 3), padding="same", activation="relu")(locnet_y)
     locnet_y = keras.layers.BatchNormalization(name="bn_stn_2")(locnet_y)
     locnet_y = keras.layers.Flatten()(locnet_y)
-    locnet_y = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(
+    locnet_y = tf.keras.layers.LSTM(
         256,
-        kernel_initializer="he_normal",
-        return_sequences=True,
         name="lstm_1",
         kernel_regularizer='l2',
-    ))(locnet_y)
+    )(locnet_y)
     locnet_y = keras.layers.Dense(
         6,
     )(locnet_y)
