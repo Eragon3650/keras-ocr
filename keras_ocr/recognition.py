@@ -232,6 +232,7 @@ def build_model(
     locnet_y = keras.layers.BatchNormalization(name="bn_stn_1")(locnet_y)
     locnet_y = keras.layers.Conv2D(32, (4, 4), padding="same", activation="relu")(locnet_y)
     locnet_y = keras.layers.BatchNormalization(name="bn_stn_2")(locnet_y)
+    locnet_y = keras.layers.Flatten()(locnet_y)
     locnet_y = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(
         256,
         kernel_initializer="he_normal",
