@@ -233,14 +233,8 @@ def build_model(
     locnet_y = keras.layers.Conv2D(32, (3, 3), padding="same", activation="relu")(locnet_y)
     locnet_y = keras.layers.BatchNormalization(name="bn_stn_2")(locnet_y)
     locnet_y = keras.layers.Flatten()(locnet_y)
-    locnet_y = tf.keras.layers.LSTM(
-        256,
-        name="lstm_1",
-        kernel_regularizer='l2',
-    )(locnet_y)
-    locnet_y = keras.layers.Dense(
-        6,
-    )(locnet_y)
+    locnet_y = keras.layers.Dense(20, activation='relu')(locnet_y)
+    locnet_y = keras.layers.Dense(6, activation=None)(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
     x = transformer(x, localization_net(x), (height,width))
     #print(x.shape)
