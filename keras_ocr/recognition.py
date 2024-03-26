@@ -230,10 +230,12 @@ def build_model(
     
     locnet_y = keras.layers.Conv2D(32, (3, 3), padding="same", activation="relu")(x)
     locnet_y = keras.layers.BatchNormalization(name="bn_stn_1")(locnet_y)
+    locnet_y = keras.layers.MaxPooling2D(pool_size=(2, 2), name="maxpool_1")(locnet_y)
     locnet_y = keras.layers.Conv2D(32, (3, 3), padding="same", activation="relu")(locnet_y)
     locnet_y = keras.layers.BatchNormalization(name="bn_stn_2")(locnet_y)
+    locnet_y = keras.layers.MaxPooling2D(pool_size=(2, 2), name="maxpool_2")(locnet_y)
     locnet_y = keras.layers.Flatten()(locnet_y)
-    locnet_y = keras.layers.Dense(20, activation='relu')(locnet_y)
+    locnet_y = keras.layers.Dense(32, activation='relu')(locnet_y)
     locnet_y = keras.layers.Dense(6, activation=None)(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
     x = transformer(x, localization_net(x), (height,width))
