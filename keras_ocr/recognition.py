@@ -259,7 +259,15 @@ def build_model(
     locnet_y = make_vgg_block(locnet_y, filters=512, n=34, pooling=False, prefix="basenet.slice4")
     locnet_y = make_vgg_block(locnet_y, filters=512, n=37, pooling=False, prefix="basenet.slice4")
     locnet_y = make_vgg_block(locnet_y, filters=512, n=40, pooling=True, prefix="basenet.slice4")
-    locnet_y = keras.layers.Dense(6, activation=None)(locnet_y)
+    locnet_y = keras.layers.Flatten()(locnet_y)
+    locnet_y = keras.layers.Dense(64, activation="relu")(locnet_y)
+    locnet_y = keras.layers.Dense(
+        6,
+        weights=[
+            np.zeros((64, 6), dtype="float32"),
+            np.array([[1, 0, 0], [0, 1, 0]], dtype="float32").flatten(),
+        ],
+    )(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
     x = transformer(x, locnet_y, (height,width))
     #print(x.shape)
