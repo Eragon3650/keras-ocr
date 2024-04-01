@@ -261,7 +261,7 @@ def build_model(
     locnet_y = make_vgg_block(locnet_y, filters=512, n=40, pooling=True, prefix="basenet.slice4")
     locnet_y = keras.layers.Dense(6, activation=None)(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
-    x = transformer(x, localization_net(x), (height,width))
+    x = transformer(x, locnet_y, (height,width))
     #print(x.shape)
     x = keras.layers.Conv2D(
         filters[0], (3, 3), activation="relu", padding="same", name="conv_1", kernel_regularizer='l2'
