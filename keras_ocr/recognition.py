@@ -197,6 +197,24 @@ def CTCLoss(y_true, y_pred):
     loss = tf.keras.backend.ctc_batch_cost(y_true, y_pred, input_len, label_len)
     return loss
 
+def make_vgg_block(x, filters, n, prefix, pooling=True):
+    x = keras.layers.Conv2D(
+        filters=filters,
+        strides=(1, 1),
+        kernel_size=(3, 3),
+        padding="same",
+        name=f"{prefix}.{n}",
+    )(x)
+    x = keras.layers.BatchNormalization(
+        momentum=0.1, epsilon=1e-5, axis=-1, name=f"{prefix}.{n+1}"
+    )(x)
+    x = keras.layers.Activation("relu", name=f"{prefix}.{n+2}")(x)
+    if pooling:
+        x = keras.layers.MaxPooling2D(
+            pool_size=(2, 2), padding="valid", strides=(2, 2), name=f"{prefix}.{n+3}"
+        )(x)
+    return x
+
 def build_model(
     alphabet,
     height,
@@ -228,14 +246,19 @@ def build_model(
     x = keras.layers.Permute((1, 2, 3))(inputs)
     x = keras.layers.Lambda(lambda x: x[:, :, ::-1])(x)
     
-    locnet_y = keras.layers.Conv2D(32, (3, 3), padding="same", activation="relu")(x)
-    locnet_y = keras.layers.BatchNormalization(name="bn_stn_1")(locnet_y)
-    locnet_y = keras.layers.MaxPooling2D(pool_size=(2, 2), name="maxpool_1")(locnet_y)
-    locnet_y = keras.layers.Conv2D(32, (3, 3), padding="same", activation="relu")(locnet_y)
-    locnet_y = keras.layers.BatchNormalization(name="bn_stn_2")(locnet_y)
-    locnet_y = keras.layers.MaxPooling2D(pool_size=(2, 2), name="maxpool_2")(locnet_y)
-    locnet_y = keras.layers.Flatten()(locnet_y)
-    locnet_y = keras.layers.Dense(32, activation='relu')(locnet_y)
+    locnet_y = make_vgg_block(x, filters=64, n=0, pooling=False, prefix="basenet.slice1")
+    locnet_y = make_vgg_block(locnet_y, filters=64, n=3, pooling=True, prefix="basenet.slice1")
+    locnet_y = make_vgg_block(locnet_y, filters=128, n=7, pooling=False, prefix="basenet.slice1")
+    locnet_y = make_vgg_block(locnet_y, filters=128, n=10, pooling=True, prefix="basenet.slice1")
+    locnet_y = make_vgg_block(locnet_y, filters=256, n=14, pooling=False, prefix="basenet.slice2")
+    locnet_y = make_vgg_block(locnet_y, filters=256, n=17, pooling=False, prefix="basenet.slice2")
+    locnet_y = make_vgg_block(locnet_y, filters=256, n=20, pooling=True, prefix="basenet.slice3")
+    locnet_y = make_vgg_block(locnet_y, filters=512, n=24, pooling=False, prefix="basenet.slice3")
+    locnet_y = make_vgg_block(locnet_y, filters=512, n=27, pooling=False, prefix="basenet.slice3")
+    locnet_y = make_vgg_block(locnet_y, filters=512, n=30, pooling=True, prefix="basenet.slice4")
+    locnet_y = make_vgg_block(locnet_y, filters=512, n=34, pooling=False, prefix="basenet.slice4")
+    locnet_y = make_vgg_block(locnet_y, filters=512, n=37, pooling=False, prefix="basenet.slice4")
+    locnet_y = make_vgg_block(locnet_y, filters=512, n=40, pooling=True, prefix="basenet.slice4")
     locnet_y = keras.layers.Dense(6, activation=None)(locnet_y)
     localization_net = keras.models.Model(inputs=x, outputs=locnet_y)
     x = transformer(x, localization_net(x), (height,width))
